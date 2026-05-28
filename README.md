@@ -5,6 +5,8 @@ GUI Android APK equivalent of https://github.com/ExponentiallyDigital/pia-wiregu
 Implements the identical PIA WireGuard provisioning flow as the Go CLI tool,
 in a native Android GUI using Flutter/Dart.
 
+![Screenshot: pia-wireghuard-cfga UI](./images/pia-wireguard-cfga.png)
+
 ## To Do
 
 1. update README.md, elaborate release zip file, update output section, add app image
@@ -118,4 +120,4 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-Copyright (C) 2026 Andrew Newbury
+/Copyright (C) 2026 Andrew Newbury
