@@ -312,7 +312,7 @@ class _MainScreenState extends State<MainScreen> {
           Padding(
             padding: EdgeInsets.only(right: 16),
             child: Text(
-              'v1.0.0',
+              'v0.0.2',
               style: TextStyle(
                 color: Color(0xFF8892A4),
                 fontSize: 11,
