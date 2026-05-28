@@ -320,8 +320,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ],
-      ),// Explicitly set the body length to 0 so the server handles the empty POST correctly
-  request.contentLength = 0;
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
