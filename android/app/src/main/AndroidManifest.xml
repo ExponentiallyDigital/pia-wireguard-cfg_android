@@ -14,7 +14,7 @@
         android:maxSdkVersion="32"/>
 
     <application
-        android:label="PIA WireGuard"
+        android:label="PIA WireGuard Config"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false"

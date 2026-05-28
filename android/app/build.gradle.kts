@@ -23,6 +23,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        base.archivesName.set("pia-wireguard-generator")
     }
 
     buildTypes {
