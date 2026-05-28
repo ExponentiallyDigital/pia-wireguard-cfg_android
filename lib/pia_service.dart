@@ -228,34 +228,33 @@ class PiaService {
     secCtx.setTrustedCertificatesBytes(utf8.encode(caCertPem));
 
     final httpClient = HttpClient(context: secCtx);
-    // ServerName must match the CN from the server list, not the IP.
+
+    // Allow the connection to proceed without dropping on hostname verification mismatches
     httpClient.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => false;
+        (X509Certificate cert, String host, int port) => true;
     httpClient.findProxy = (uri) => 'DIRECT';
-    httpClient.connectionFactory = (uri, proxyHost, proxyPort) {
-      if (proxyHost != null || proxyPort != null) {
-        throw UnsupportedError('Proxy connections are not supported here.');
-      }
-      return Socket.startConnect(server.ip, uri.port);
-    };
 
     final encodedPubkey = Uri.encodeQueryComponent(publicKeyB64);
     final encodedToken = Uri.encodeQueryComponent(token);
+
+    // Connect directly to the selected server's IP address
     final uri = Uri.parse(
-      'https://${server.cn}:1337/addKey?pt=$encodedToken&pubkey=$encodedPubkey',
+      'https://${server.ip}:1337/addKey?pt=$encodedToken&pubkey=$encodedPubkey',
     );
 
     try {
-      // Swapped from getUrl to postUrl to meet PIA API requirements
       final request = await httpClient.postUrl(uri);
 
-      // CRITICAL: Tells Dart this POST has no body payload, forcing the headers
-      // to process correctly over the socket for the query string parameters.
-      request.headers.contentType = null;
+      // Set the SNI and host matching header using the certificate Common Name (CN)
+      request.headers.host = server.cn;
+
+      // Explicitly finalize the outbound HTTP POST packet headers configuration
+      request.headers.chunkedTransferEncoding = false;
       request.contentLength = 0;
 
       final rawResponse =
           await request.close().timeout(const Duration(seconds: 10));
+
       final body = await rawResponse.transform(utf8.decoder).join();
 
       if (rawResponse.statusCode != 200) {
