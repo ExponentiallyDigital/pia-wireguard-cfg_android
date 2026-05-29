@@ -65,8 +65,8 @@ jobs:
           cp README.md build/$ADDON/
 
           # Copy the compiled APK and checksum files from Flutter's build output
-          cp build/app/outputs/flutter-apk/app-release.apk build/$ADDON/pia-wireguard-cfga-release.apk
-          cp build/app/outputs/flutter-apk/app-release.apk.sha1 build/$ADDON/pia-wireguard-cfga-release.sha1
+          cp build/app/outputs/flutter-apk/app-release.apk build/$ADDON/pia-wireguard-cfga.apk
+          cp build/app/outputs/flutter-apk/app-release.apk.sha1 build/$ADDON/pia-wireguard-cfga.sha1
 
       # 6. CREATE ZIP ARCHIVE
       - name: Create ZIP

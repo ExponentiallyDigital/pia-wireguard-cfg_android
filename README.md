@@ -1,32 +1,35 @@
 # pia-wireguard-cfga
 
-GUI Android APK equivalent of https://github.com/ExponentiallyDigital/pia-wireguard-cfg
+A native Android GUI app built with Flutter and Dart that generates a ready-to-use WireGuard configuration file for the Private Internet Access (PIA) VPN service. It authenticates with PIA's official provisioning API, selects the lowest-latency server in your chosen region, generates a fresh WireGuard keypair, and allows you to save the complete `.conf` to the clipboard or share/save to a user specified app/location.
 
-Implements the identical Private Internet Access (PIA) WireGuard provisioning flow as the Go CLI tool, wrapped in a native Android GUI built with Flutter and Dart.
+This app is a GUI Android APK equivalent of my [Windows 11/Linux command line app](https://github.com/ExponentiallyDigital/pia-wireguard-cfg).
 
-## Pre-Built Releases
+## Why use this?
 
-If you do not want to compile the application from scratch, pre-packaged release archives are available under the **Releases** section of this GitHub repository.
-
-Each release contains a compiled, production-ready `.zip` archive containing:
-
-- The optimized Android application (`pia-wireguard-cfga-release.apk`)
-- The cryptographic verification checksum (`pia-wireguard-cfga-release.sha1`)
-- Offline documentation (`README.html`, `README.md`, and `LICENSE`)
+Manually creating a PIA WireGuard configuration requires authenticating against multiple APIs, parsing server lists, performing key exchange, and assembling the config by hand. **pia-wireguard-cfga** automates the entire process.
 
 ## Features
 
-- **Automated Lowest-Latency Server Selection:** Measures live TCP latency against port 1337 across all available servers in your selected target region, ensuring you always provision against the fastest node.
-- **Cryptographically Secure Keypair Generation:** Dynamically generates an ephemeral WireGuard keypair using `x25519` with proper RFC 7748 scalar clamping directly inside the runtime environment.
-- **Dynamic Certificate Pinning:** Fetches PIA's trusted root CA certificate dynamically at runtime from the `pia-foss/manual-connections` repository. No hardcoded certificates ensure operations continue smoothly even if PIA rotates authority roots.
-- **Credential Safety:** Your PIA password is entered interactively at execution and used strictly to request a short-lived HTTP Basic Auth provisioning token. Credentials are never written to disk, stored, or logged.
-- **Modern Adaptive Styling:** Fully supports Android 8.0+ Adaptive Icons using a native multi-layered presentation conforming to a dark-mode theme aesthetic (`#12141A`).
-- **Android Permisions:** none are requested/required.
+- **Automated lowest-latency server selection:** measures live TCP latency against port 1337 across all available servers in your selected target region, ensuring you always provision against the fastest node.
+- **Cryptographically secure keypair generation:** dynamically generates an ephemeral WireGuard keypair using `x25519` with proper RFC 7748 scalar clamping directly inside the runtime environment.
+- **Dynamic certificate pinning:** fetches PIA's trusted root CA certificate dynamically at runtime from the `pia-foss/manual-connections` repository. No hardcoded certificates ensure operations continue smoothly even if PIA rotates authority roots.
+- **Credential safety:** your PIA password is entered interactively at execution and used strictly to request a short-lived HTTP Basic Auth provisioning token. Credentials are never written to disk, stored, or logged.
+- **Modern adaptive styling:** fully supports Android 8.0+ Adaptive Icons using a native multi-layered presentation conforming to a dark-mode theme aesthetic (`#12141A`).
+- **Android permissions:** none are requested/required.
+
+## Pre-built releases
+
+If you don't want to compile the app from scratch, pre-packaged release archives are available under the **Releases** section of this GitHub repository.
+
+Each release contains a compiled, production-ready `.zip` archive containing:
+
+- The optimised Android application (`pia-wireguard-cfga.apk`)
+- Offline documentation (`README.html` and `LICENSE`)
 
 ## Interface
 
 App screen:
-![Screenshot: pia-wireghuard-cfga UI](./images/interface.png)
+![Screenshot: pia-wireguard-cfga UI](./images/interface.png)
 
 Filterable region selection:
 ![Screenshot: region selection](./images/region-selection.png)
@@ -34,17 +37,17 @@ Filterable region selection:
 Generated config file:
 ![Screenshot: generated config](./images/generated-config.png)
 
-## Build Setup
+## Build setup
 
 If you prefer to compile and test the application locally, follow the configuration steps below.
 
 ### Prerequisites
 
-- **Flutter SDK:** Version 3.10 or later ([Flutter Installation Guide](https://flutter.dev/docs/get-started/install))
-- **Android SDK / Studio:** Configured with Java Development Kit (JDK 17)
+- **Flutter SDK:** version 3.10 or later ([Flutter Installation Guide](https://flutter.dev/docs/get-started/install))
+- **Android SDK / Studio:** configured with Java Development Kit (JDK 17)
 - A connected physical Android device (with USB Debugging enabled) or an active Android Virtual Device (AVD) Emulator.
 
-### 1. Install Dependencies
+### 1. Install dependencies
 
 Pull the tracking package constraints defined within the project manifests:
 
@@ -52,41 +55,40 @@ Pull the tracking package constraints defined within the project manifests:
 flutter pub get
 ```
 
-### 2. Generate Asset Assets (Launcher Icons)
+### 2. Generate assets (launcher icons)
 
 The app leverages the `flutter_launcher_icons` framework to generate adaptive foreground and background configurations for Android launchers. Before your initial compilation, generate the native resource files:
 
-```Bash
+```bash
 dart run flutter_launcher_icons
 ```
 
-### 3. Run Locally for Testing
+### 3. Run locally for testing
 
 To run a hot-reloaded debug instance directly onto your attached mobile workspace:
 
-```Bash
+```bash
 flutter run
 ```
 
-### 4. Build Release APK
+### 4. Build release APK
 
 To create a standalone production compilation targeted for distribution:
 
-```Bash
+```bash
 flutter build apk --release
 ```
 
-#### Local Output Destinations:
+#### Local output destinations:
 
 - Standard Flutter Pipeline Archive: build/app/outputs/flutter-apk/app-release.apk
-
 - Gradle Pipeline Build Output: build/app/outputs/apk/release/pia-wireguard-cfga-release.apk
 
 ### 5. Sideload
 
 To push the compiled binaries directly onto your phone via Android Debug Bridge (ADB):
 
-```Bash
+```bash
 adb install build/app/outputs/flutter-apk/app-release.apk
 ```
 
@@ -94,15 +96,15 @@ or sideload via your favorite app (I prefer X-plore).
 
 ## How it works
 
-The provisioning logic in `lib/pia_service.dart` is a direct Dart translation of the command line version's [ Go code](https://github.com/ExponentiallyDigital/pia-wireguard-cfg/blob/main/main.go), implementing the same steps in the same order:
+The provisioning logic in `lib/pia_service.dart` is a direct Dart translation of the command line version's [Go code](https://github.com/ExponentiallyDigital/pia-wireguard-cfg/blob/main/main.go), implementing the same steps in the same order:
 
-1. Server Discovery: Pulls the complete endpoints mapping directly from serverlist.piaservers.net/vpninfo/servers/v6. The payload splits at the first newline boundary to discard the payload block signature.
-2. Latency Probes: Dispatches immediate TCP probes to port 1337 across regional candidate blocks to calculate routing latency.
-3. Session Tokens: Challenges the central API through a standard POST request over TLS, securing an execution token from basic user parameters.
-4. KeyPair Issuance: Generate WireGuard keypair using X25519 with RFC 7748 scalar clamping
+1. **Server discovery**: pulls the complete endpoints mapping directly from serverlist.piaservers.net/vpninfo/servers/v6. The payload splits at the first newline boundary to discard the payload block signature.
+2. **Latency probes**: dispatches immediate TCP probes to port 1337 across regional candidate blocks to calculate routing latency.
+3. **Session tokens**: challenges the central API through a standard POST request over TLS, securing an execution token from basic user parameters.
+4. **Keypair issuance**: generate WireGuard keypair using X25519 with RFC 7748 scalar clamping  
    (k[0] &= 248, k[31] &= 127, k[31] |= 64)
-5. Secure Registration: Submits the dynamic public key configuration to the chosen low-latency endpoint via an HTTPS API (port 1337). The step utilizes the dynamically resolved PIA root certificate, matching the specific Common Name (CN) mapping fields rather than raw IP routing addresses. The certificate is not hardcoded, so that it stays current when PIA rotates it.
-6. Config Assembly: Transforms payload metadata returns into localized .conf specifications utilizing Unix line endings (\n) for cross-compatibility.
+5. **Secure registration**: submits the dynamic public key configuration to the chosen low-latency endpoint via an HTTPS API (port 1337). The step utilises the dynamically resolved PIA root certificate, matching the specific Common Name (CN) mapping fields rather than raw IP routing addresses. The certificate is not hardcoded, so that it stays current when PIA rotates it.
+6. **Config assembly**: transforms payload metadata returns into localised .conf specifications utilising Unix line endings (\n) for cross-compatibility.
 
 ### Sample output
 
@@ -125,15 +127,15 @@ AllowedIPs          = 0.0.0.0/0
 The generated config is:
 
 - Displayed in the app for review.
-- Auto-saved to the app's documents directory (only acessible by the app itself).
+  \*- Auto-saved to the app's documents directory (only accessible by the app itself).
 - Shareable via Android's share sheet (use "Save to Files", send via email, etc.).
 - Copyable to the clipboard.
 
 ## Notes
 
-- Time-to-Live Constraints: Config allocations generated under this lifecycle model expire every 1-2 weeks under PIA's standard structural token design, requiring you to open the app and regenerate a config file periodically.
-- Key Safety: The generated string payloads reveal your private encryption keys. Manage files securely and avoid leaving copies in unsecured spaces.
-- Network Requirements: An active internet connection is mandatory to resolve remote lookup tables and register credentials with API endpoints.
+- **Time-to-live constraints**: PIA Wireguard configs expire every few weeks per PIA's token handling, requiring you to regenerate a config file periodically (which is why this app exists!).
+- **Key safety**: the generated config contains private encryption keys. Treat them like a password and manage them securely.
+- **Network requirements**: an active internet connection is required to resolve remote lookup tables and register credentials with API endpoints.
 
 ## Package dependencies
 
@@ -146,24 +148,23 @@ The generated config is:
 
 ## Development "to do" list
 
-1. refactor versioning (currently in 2 places)
-2. create homescreen icon on install (revisit if/when released to playstore)
+1. Refactor versioning (currently in 2 places)
+2. Create homescreen icon on install (revisit if/when released to Play Store)
 
 ## Contributing
 
 Contributions are welcome. To contribute:
 
 1. Fork the repository
-2. Create a feature branch (git checkout -b feature/AmazingFeature)
-3. Commit your changes (git commit -m 'Add some AmazingFeature')
-4. Ensure code formatting is clean (flutter format . and flutter analyze)
-5. Push to the branch (git push origin feature/AmazingFeature)
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Ensure code formatting is clean (`flutter format .` and `flutter analyze`)
+5. Push to the branch (`git push origin feature/AmazingFeature`)
 6. Open a Pull Request
 
 ## Bugs and feature requests
 
-Found a bug or want to request a feature?
-[Open an issue here](https://github.com/ExponentiallyDigital/pia-wireguard-cfga/issues)
+Found a bug or want to request a feature? [Open an issue here](https://github.com/ExponentiallyDigital/pia-wireguard-cfga/issues).
 
 ## Support
 
@@ -177,4 +178,4 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-/Copyright (C) 2026 Andrew Newbury
+Copyright (C) 2026 Andrew Newbury.
