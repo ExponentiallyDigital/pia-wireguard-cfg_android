@@ -42,18 +42,10 @@ jobs:
           cache: true
 
       # 3. DECODE KEYSTORE
-      # Decodes the base64-encoded JKS stored in KEYSTORE_BASE64 and writes it
-      # to android/release.jks, then creates android/key.properties so
-      # build.gradle.kts can find it.  All four secrets must be set in the
-      # repository Settings -> Secrets and variables -> Actions page:
-      #   KEYSTORE_BASE64    -- base64 -i release.jks | pbcopy
-      #   KEYSTORE_PASSWORD  -- storePassword
-      #   KEY_ALIAS          -- keyAlias  (e.g. pia-wireguard)
-      #   KEY_PASSWORD       -- keyPassword
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/release.jks
-          cat > android/key.properties <<EOF
+          cat > android/key.properties <<'EOF'
           storeFile=../release.jks
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
