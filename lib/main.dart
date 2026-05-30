@@ -379,7 +379,7 @@ class _MainScreenState extends State<MainScreen> {
             Padding(
               padding: EdgeInsets.only(right: 16),
               child: Text(
-                'v0.2.1',
+                'v0.2.2',
                 style: TextStyle(
                   color: Color(0xFF8892A4),
                   fontSize: 11,
@@ -473,8 +473,6 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   autocorrect: false, // [CHANGE 3]
                   enableSuggestions: false, // [CHANGE 3]
-                  enableInteractiveSelection:
-                      false, // [CHANGE 3] disables cut/copy/paste
                 ),
                 const SizedBox(height: 20),
                 const _SectionLabel('DNS SERVERS'),

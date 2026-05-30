@@ -1,6 +1,6 @@
 name: pia_wireguard_cfga
 description: Generates WireGuard config files for PIA VPN
-version: 0.2.1+1
+version: 0.2.2+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
