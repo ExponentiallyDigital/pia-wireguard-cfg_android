@@ -165,7 +165,8 @@ The generated configuration data lifecycle is managed under a high-security para
    aus 2 WireGuard server(s)
    aus_melbourne 2 WireGuard server(s)
    (160 regions)
-7. ADD: include total server count with region count
+7. ADD: include total server count with region count (use golang app's styled output)
+8. FIX: still can't install over an existing copy of the app, have to manually uninstall first
 
 ## Contributing
 
