@@ -149,7 +149,7 @@ The generated config is:
 ## Development "to do" list
 
 1. Refactor versioning (currently in 2 places)
-2. Security changes (implement "clear" button, remove conf save to app dir, harden input fields, auto clear on timeout, task switcher preview block) & audit
+2. Full security audit
 3. Release to Play Store
 
 ## Contributing
