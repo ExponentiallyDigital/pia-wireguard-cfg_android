@@ -157,17 +157,10 @@ The generated configuration data lifecycle is managed under a high-security para
 
 1. Release to Play Store
 2. Full external app security audit
-3. FIX: screen clear icon only appears AFTER a config has been successfully created ditto for timer, instead have that button and timer always there, note this in the docs
-4. ADD to docs: onscreen logging added
-5. ADD to docs: replace screenshots
-6. NOTE: Perth offline as at 2026-05-31 12:34, also aus and mel now 2 not 3 servers, also times out in all AU regions after 10 seconds. PIA WG servers under maintenance?
-   au_australia-so 3 WireGuard server(s)
-   aus 2 WireGuard server(s)
-   aus_melbourne 2 WireGuard server(s)
-   (160 regions)
-7. ADD: include total server count with region count (use golang app's styled output)
-8. FIX: still can't install over an existing copy of the app, have to manually uninstall first
-9. CHG: review all log messaages, make successful gen of conf WHITE so it stands out, change timer colour so easier to see
+3. ADD to docs: onscreen logging added
+4. ADD to docs: replace screenshots
+5. FIX: still can't install over an existing copy of the app, have to manually uninstall first
+6. CHG: review all log messaages
 
 ## Contributing
 

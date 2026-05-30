@@ -15,6 +15,13 @@ void main() {
   runApp(const PiaWgApp());
 }
 
+// ---------------------------------------------------------------------------
+// Shared accent colour used by timer, DNS helper text, config header,
+// log "Ready" text, and active log line icons.
+// Defined once here so all widgets stay in sync automatically.
+// ---------------------------------------------------------------------------
+const _kHighlight = Color(0xFF00D4AA); // primary teal
+
 class PiaWgApp extends StatelessWidget {
   const PiaWgApp({super.key});
 
@@ -25,7 +32,7 @@ class PiaWgApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF00D4AA),
+          primary: _kHighlight,
           secondary: Color(0xFF00A882),
           surface: Color(0xFF1A1D23),
           error: Color(0xFFFF5C5C),
@@ -47,14 +54,14 @@ class PiaWgApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF00D4AA), width: 1.5),
+            borderSide: const BorderSide(color: _kHighlight, width: 1.5),
           ),
           labelStyle: const TextStyle(color: Color(0xFF8892A4)),
           hintStyle: const TextStyle(color: Color(0xFF4A5268)),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF00D4AA),
+            backgroundColor: _kHighlight,
             foregroundColor: const Color(0xFF12141A),
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
@@ -75,11 +82,14 @@ class PiaWgApp extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 // Log entry model
+// isSuccess is used exclusively for the "Config generated successfully."
+// line which renders in white rather than the normal teal.
 // ---------------------------------------------------------------------------
 class _LogEntry {
   final String message;
   final bool isError;
-  _LogEntry(this.message, {this.isError = false});
+  final bool isSuccess;
+  _LogEntry(this.message, {this.isError = false, this.isSuccess = false});
 }
 
 class MainScreen extends StatefulWidget {
@@ -96,8 +106,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   final _regionCtrl = TextEditingController();
   final _dnsCtrl = TextEditingController(text: '9.9.9.9, 149.112.112.112');
 
-  // The ScrollController drives the ONE outer SingleChildScrollView.
-  // The log panel is just a Column inside it -- no nested scroll views.
+  // Single ScrollController for the ONE outer SingleChildScrollView.
   final _scrollCtrl = ScrollController();
 
   bool _passwordVisible = false;
@@ -106,11 +115,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   String? _generatedConfig;
   List<Region> _regions = [];
 
-  // Log entries -- rendered as a plain Column, never a nested ListView
+  // Log entries rendered as a plain Column -- no nested ListView.
   final List<_LogEntry> _log = [];
 
   // ---------------------------------------------------------------------------
-  // Safety auto-wipe timer (wall-clock deadline based)
+  // Safety auto-wipe timer -- wall-clock deadline based
   // ---------------------------------------------------------------------------
   static const _timeoutSeconds = 180;
   Timer? _wipeTimer;
@@ -136,7 +145,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   // ---------------------------------------------------------------------------
-  // Lifecycle -- correct countdown when returning from background
+  // Lifecycle -- recalculate countdown on foreground resume
   // ---------------------------------------------------------------------------
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -153,13 +162,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   // ---------------------------------------------------------------------------
-  // Log helpers -- append to list and scroll to bottom after frame
+  // Log helpers
   // ---------------------------------------------------------------------------
-  void _logEntry(String message, {bool isError = false}) {
+  void _logEntry(String message, {bool isError = false, bool isSuccess = false}) {
     if (!mounted) return;
-    setState(() => _log.add(_LogEntry(message, isError: isError)));
-    // Scroll the outer SingleChildScrollView to the bottom so the new
-    // log line is visible without the user needing to scroll manually.
+    setState(() => _log.add(
+        _LogEntry(message, isError: isError, isSuccess: isSuccess)));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
@@ -173,8 +181,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   void _logInfo(String msg) => _logEntry(msg);
   void _logError(String msg) => _logEntry(msg, isError: true);
+  void _logSuccess(String msg) => _logEntry(msg, isSuccess: true);
 
-  // Passed as onProgress callback to PiaService
   void _onProgress(String msg) => _logInfo(msg);
 
   // ---------------------------------------------------------------------------
@@ -199,7 +207,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   // ---------------------------------------------------------------------------
   void _startOrResetTimer() {
     _wipeTimer?.cancel();
-    _wipeDeadline = DateTime.now().add(const Duration(seconds: _timeoutSeconds));
+    _wipeDeadline =
+        DateTime.now().add(const Duration(seconds: _timeoutSeconds));
     _secondsRemaining = _timeoutSeconds;
 
     _wipeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -207,7 +216,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         timer.cancel();
         return;
       }
-      final remaining = _wipeDeadline!.difference(DateTime.now()).inSeconds;
+      final remaining =
+          _wipeDeadline!.difference(DateTime.now()).inSeconds;
       if (remaining <= 0) {
         timer.cancel();
         _clearSession();
@@ -233,7 +243,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       final regions = await _service.fetchRegions(onProgress: _onProgress);
       if (!mounted) return;
       setState(() => _regions = regions);
-      _logInfo('Loaded ${regions.length} regions.');
+      // Server count is exposed via Region.wgServers -- sum across all regions
+      final totalServers =
+          regions.fold<int>(0, (sum, r) => sum + r.wgServers.length);
+      _logInfo(
+          'Loaded ${regions.length} regions ($totalServers servers).');
       _showRegionPicker();
     } on TimeoutException {
       if (!mounted) return;
@@ -294,7 +308,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       );
       if (!mounted) return;
       setState(() => _generatedConfig = config);
-      _logInfo('Config generated successfully.');
+      // "Config generated successfully." renders in white per spec
+      _logSuccess('Config generated successfully.');
       _startOrResetTimer();
     } on TimeoutException catch (e) {
       if (!mounted) return;
@@ -308,7 +323,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   // ---------------------------------------------------------------------------
-  // Share via system share sheet
+  // Share via system share sheet -- named temp file, deleted after share
   // ---------------------------------------------------------------------------
   Future<void> _shareConfig() async {
     if (_generatedConfig == null) return;
@@ -341,7 +356,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       const SnackBar(
         content: Text('Config copied to clipboard'),
         duration: Duration(seconds: 2),
-        backgroundColor: Color(0xFF00D4AA),
+        backgroundColor: _kHighlight,
       ),
     );
   }
@@ -359,25 +374,42 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         appBar: AppBar(
           backgroundColor: const Color(0xFF1A1D23),
           elevation: 0,
+          // [CHANGE 4] Title now has a subtitle "by Exponentially Digital"
           title: Row(
             children: [
               Container(
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF00D4AA),
+                  color: _kHighlight,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'PIA WireGuard Config',
-                style: TextStyle(
-                  color: Color(0xFFE8EAF0),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Text(
+                    'PIA WireGuard Config',
+                    style: TextStyle(
+                      color: Color(0xFFE8EAF0),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  Text(
+                    'by Exponentially Digital',
+                    style: TextStyle(
+                      // Same hex as the version string in the actions area
+                      color: Color(0xFF8892A4),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -388,8 +420,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 child: FutureBuilder<PackageInfo>(
                   future: PackageInfo.fromPlatform(),
                   builder: (context, snapshot) {
-                    final label =
-                        snapshot.hasData ? 'v${snapshot.data!.version}' : 'v...';
+                    final label = snapshot.hasData
+                        ? 'v${snapshot.data!.version}'
+                        : 'v...';
                     return Text(label,
                         style: const TextStyle(
                             color: Color(0xFF8892A4), fontSize: 11));
@@ -399,8 +432,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        // The entire page is ONE SingleChildScrollView.
-        // The log panel is a plain Column at the bottom -- no nested scrolling.
         body: SafeArea(
           child: SingleChildScrollView(
             controller: _scrollCtrl,
@@ -408,9 +439,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+
                 // ---- REGION ----
-                const _SectionLabel('REGION'),
-                const SizedBox(height: 8),
+                // [CHANGE 2] Removed _SectionLabel('REGION') above this field
                 Row(
                   children: [
                     Expanded(
@@ -437,11 +468,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
                 // ---- CREDENTIALS ----
-                const _SectionLabel('CREDENTIALS'),
-                const SizedBox(height: 8),
+                // [CHANGE 2] Removed _SectionLabel('CREDENTIALS') above this field
                 TextFormField(
                   controller: _usernameCtrl,
                   style: const TextStyle(
@@ -470,8 +500,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     prefixIcon: const Icon(Icons.lock_outline,
                         color: Color(0xFF8892A4), size: 18),
                     suffixIcon: GestureDetector(
-                      onTap: () =>
-                          setState(() => _passwordVisible = !_passwordVisible),
+                      onTap: () => setState(
+                          () => _passwordVisible = !_passwordVisible),
                       child: Icon(
                         _passwordVisible
                             ? Icons.visibility_off
@@ -484,11 +514,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   autocorrect: false,
                   enableSuggestions: false,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
                 // ---- DNS ----
-                const _SectionLabel('DNS SERVERS'),
-                const SizedBox(height: 8),
+                // [CHANGE 2] Removed _SectionLabel('DNS SERVERS') above this field
+                // [CHANGE 2] labelText changed from 'DNS' to 'DNS servers'
+                // [CHANGE 1] helperStyle colour brightened to _kHighlight
                 TextFormField(
                   controller: _dnsCtrl,
                   style: const TextStyle(
@@ -497,14 +528,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     fontSize: 13,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'DNS',
+                    labelText: 'DNS servers',
                     hintText: '9.9.9.9, 149.112.112.112',
                     prefixIcon: Icon(Icons.dns_outlined,
                         color: Color(0xFF8892A4), size: 18),
                     helperText:
                         'Quad9 default  |  Cloudflare: 1.1.1.1, 1.0.0.1',
-                    helperStyle:
-                        TextStyle(color: Color(0xFF4A5268), fontSize: 11),
+                    // [CHANGE 1] DNS subtext now uses the highlight colour
+                    helperStyle: TextStyle(color: _kHighlight, fontSize: 11),
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -533,15 +564,25 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const _SectionLabel('GENERATED CONFIG'),
+                      // [CHANGE 1] "GENERATED CONFIG" label uses _kHighlight
+                      const Text(
+                        'GENERATED CONFIG',
+                        style: TextStyle(
+                          color: _kHighlight,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                       const Spacer(),
+                      // [CHANGE 1] Timer icon and text use _kHighlight (red only at <=30s)
                       if (_secondsRemaining > 0) ...[
                         Icon(
                           Icons.timer_outlined,
                           size: 12,
                           color: _secondsRemaining <= 30
                               ? const Color(0xFFFF5C5C)
-                              : const Color(0xFF4A5268),
+                              : _kHighlight,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -549,44 +590,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           style: TextStyle(
                             color: _secondsRemaining <= 30
                                 ? const Color(0xFFFF5C5C)
-                                : const Color(0xFF4A5268),
+                                : _kHighlight,
                             fontSize: 11,
                             fontFamily: 'monospace',
                           ),
                         ),
                         const SizedBox(width: 12),
                       ],
-                      GestureDetector(
+                      // CLEAR button -- reference style for CLEAR LOG button
+                      _ClearButton(
+                        label: 'CLEAR',
+                        icon: Icons.delete_outline,
                         onTap: _clearSession,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A1515),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: const Color(0xFFFF5C5C)
-                                  .withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.delete_outline,
-                                  size: 12, color: Color(0xFFFF5C5C)),
-                              SizedBox(width: 4),
-                              Text(
-                                'CLEAR',
-                                style: TextStyle(
-                                  color: Color(0xFFFF5C5C),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -596,13 +611,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                     decoration: BoxDecoration(
                       color: const Color(0xFF0E1016),
                       borderRadius: BorderRadius.circular(8),
-                      border:
-                          Border.all(color: const Color(0xFF00D4AA), width: 1),
+                      border: Border.all(color: _kHighlight, width: 1),
                     ),
                     child: SelectableText(
                       _generatedConfig!,
                       style: const TextStyle(
-                        color: Color(0xFF00D4AA),
+                        color: _kHighlight,
                         fontFamily: 'monospace',
                         fontSize: 11,
                         height: 1.6,
@@ -618,8 +632,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           icon: const Icon(Icons.copy, size: 16),
                           label: const Text('COPY'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF00D4AA),
-                            side: const BorderSide(color: Color(0xFF00D4AA)),
+                            foregroundColor: _kHighlight,
+                            side: const BorderSide(color: _kHighlight),
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -632,8 +646,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                           icon: const Icon(Icons.share, size: 16),
                           label: const Text('SHARE / SAVE'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF00D4AA),
-                            side: const BorderSide(color: Color(0xFF00D4AA)),
+                            foregroundColor: _kHighlight,
+                            side: const BorderSide(color: _kHighlight),
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -644,19 +658,79 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 ],
 
                 // ---- LOG PANEL ----
-                // Always present regardless of app state.
-                // Rendered as a plain Column -- no nested ListView or
-                // ConstrainedBox. The outer SingleChildScrollView handles
-                // all scrolling so log lines always appear inline and are
-                // never clipped or rendered out of position.
+                // [CHANGE 3] "LOG" label is now ABOVE the panel container,
+                // left-aligned, matching the old _SectionLabel style.
+                // The panel itself no longer has a header row inside.
                 const SizedBox(height: 32),
-                _LogPanel(entries: _log, onClearLog: () {
-                  setState(() => _log.clear());
-                }),
+                // [CHANGE 3] LOG label sits above the box
+                const Text(
+                  'LOG',
+                  style: TextStyle(
+                    color: Color(0xFF4A5268),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _LogPanel(
+                  entries: _log,
+                  onClearLog: () => setState(() => _log.clear()),
+                ),
                 const SizedBox(height: 20),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _ClearButton -- shared style used by both "CLEAR" (session) and
+// "CLEAR LOG" buttons so they are visually identical.
+// ---------------------------------------------------------------------------
+class _ClearButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ClearButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A1515),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: const Color(0xFFFF5C5C).withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: const Color(0xFFFF5C5C)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFFFF5C5C),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -682,7 +756,8 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final filtered = widget.regions
-        .where((r) => r.id.toLowerCase().contains(_filter.toLowerCase()))
+        .where(
+            (r) => r.id.toLowerCase().contains(_filter.toLowerCase()))
         .toList();
 
     return DraggableScrollableSheet(
@@ -716,11 +791,13 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                 fillColor: const Color(0xFF1E2128),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF2E3240)),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF2E3240)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF2E3240)),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF2E3240)),
                 ),
               ),
               onChanged: (v) => setState(() => _filter = v),
@@ -741,7 +818,7 @@ class _RegionPickerSheetState extends State<_RegionPickerSheet> {
                     child: Row(
                       children: [
                         const Icon(Icons.chevron_right,
-                            color: Color(0xFF00D4AA), size: 16),
+                            color: _kHighlight, size: 16),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -821,9 +898,9 @@ class _IconButton extends StatelessWidget {
                 ? const Padding(
                     padding: EdgeInsets.all(14),
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Color(0xFF00D4AA)),
+                        strokeWidth: 2, color: _kHighlight),
                   )
-                : Icon(icon, color: const Color(0xFF00D4AA), size: 20),
+                : Icon(icon, color: _kHighlight, size: 20),
           ),
         ),
       );
@@ -832,13 +909,13 @@ class _IconButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Log panel
 //
-// Key design decision: log entries are rendered as a plain Column, NOT a
-// ListView. This avoids the shrinkWrap+ConstrainedBox trap that caused log
-// lines to escape their container and float over the top of the screen.
-// The outer SingleChildScrollView handles all page scrolling including the
-// log area, so the panel simply grows downward with each new entry.
+// The "LOG" header label has been moved ABOVE this widget in the build tree
+// (per Change 3). The panel itself now starts directly with the entries.
 //
-// A "CLEAR LOG" button appears in the header once entries exist.
+// The CLEAR LOG button uses _ClearButton for visual parity with the session
+// CLEAR button (per Change 3).
+//
+// Log entries are a plain Column -- no nested ListView or ConstrainedBox.
 // ---------------------------------------------------------------------------
 class _LogPanel extends StatelessWidget {
   final List<_LogEntry> entries;
@@ -858,73 +935,63 @@ class _LogPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
-          Row(
-            children: [
-              const Text(
-                'LOG',
-                style: TextStyle(
-                  color: Color(0xFF4A5268),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
+          // [CHANGE 3] CLEAR LOG button now uses _ClearButton, matching CLEAR
+          if (entries.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: _ClearButton(
+                label: 'CLEAR LOG',
+                icon: Icons.delete_outline,
+                onTap: onClearLog,
               ),
-              const Spacer(),
-              if (entries.isNotEmpty)
-                GestureDetector(
-                  onTap: onClearLog,
-                  child: const Text(
-                    'CLEAR LOG',
-                    style: TextStyle(
-                      color: Color(0xFF4A5268),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
+            ),
+            const SizedBox(height: 10),
+          ],
 
-          // Log body -- plain Column, grows with content
+          // Log body
           if (entries.isEmpty)
+            // [CHANGE 1] "Ready." uses _kHighlight to match active log colour
             const Text(
               'Ready.',
               style: TextStyle(
-                color: Color(0xFF4A5268),
+                color: _kHighlight,
                 fontSize: 11,
                 fontFamily: 'monospace',
               ),
             )
           else
-            // Each entry is its own Row with icon + text, separated by 4dp
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: entries.map((entry) {
+                // Determine text and icon colour:
+                //   isSuccess  -> Colors.white
+                //   isError    -> red
+                //   normal     -> _kHighlight teal
+                final Color textColor;
+                final IconData entryIcon;
+                if (entry.isSuccess) {
+                  textColor = Colors.white;
+                  entryIcon = Icons.check_circle_outline;
+                } else if (entry.isError) {
+                  textColor = const Color(0xFFFF5C5C);
+                  entryIcon = Icons.error_outline;
+                } else {
+                  textColor = _kHighlight;
+                  entryIcon = Icons.info_outline;
+                }
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        entry.isError
-                            ? Icons.error_outline
-                            : Icons.info_outline,
-                        size: 12,
-                        color: entry.isError
-                            ? const Color(0xFFFF5C5C)
-                            : const Color(0xFF00D4AA),
-                      ),
+                      Icon(entryIcon, size: 12, color: textColor),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           entry.message,
                           style: TextStyle(
-                            color: entry.isError
-                                ? const Color(0xFFFF5C5C)
-                                : const Color(0xFF00D4AA),
+                            color: textColor,
                             fontSize: 11,
                             fontFamily: 'monospace',
                             height: 1.4,

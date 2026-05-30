@@ -25,9 +25,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # required for full git history
+          fetch-depth: 0
 
-      # 1. SET UP JAVA (Required for Android/Flutter builds)
+      # 1. SET UP JAVA
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -41,47 +41,63 @@ jobs:
           channel: "stable"
           cache: true
 
-      # 3. GET DEPENDENCIES & BUILD THE APK
+      # 3. DECODE KEYSTORE
+      # Decodes the base64-encoded JKS stored in KEYSTORE_BASE64 and writes it
+      # to android/release.jks, then creates android/key.properties so
+      # build.gradle.kts can find it.  All four secrets must be set in the
+      # repository Settings -> Secrets and variables -> Actions page:
+      #   KEYSTORE_BASE64    -- base64 -i release.jks | pbcopy
+      #   KEYSTORE_PASSWORD  -- storePassword
+      #   KEY_ALIAS          -- keyAlias  (e.g. pia-wireguard)
+      #   KEY_PASSWORD       -- keyPassword
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/release.jks
+          cat > android/key.properties <<EOF
+          storeFile=../release.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+
+      # 4. GET DEPENDENCIES & BUILD THE APK
       - name: Build Flutter APK
         run: |
           flutter pub get
           dart run flutter_launcher_icons
           flutter build apk --release
 
-      # 4. INSTALL PANDOC
+      # 5. INSTALL PANDOC
       - name: Install Pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
-      # 5. CREATE STAGING DIRECTORY & GENERATE HTML
+      # 6. CREATE STAGING DIRECTORY & GENERATE HTML
       - name: Create addon directory and assets
         run: |
           ADDON="${{ github.event.repository.name }}"
           mkdir -p build/$ADDON
 
-          # Generate the HTML documentation directly into the target folder
           pandoc README.md -f gfm -t html -s --self-contained -o build/$ADDON/README.html
 
-          # Copy standard repository project files
           cp LICENSE build/$ADDON/
           cp README.md build/$ADDON/
 
-          # Copy the compiled APK and checksum files from Flutter's build output
           cp build/app/outputs/flutter-apk/app-release.apk build/$ADDON/pia-wireguard-cfga.apk
           cp build/app/outputs/flutter-apk/app-release.apk.sha1 build/$ADDON/pia-wireguard-cfga.sha1
 
-      # 6. CREATE ZIP ARCHIVE
+      # 7. CREATE ZIP ARCHIVE
       - name: Create ZIP
         run: |
           ADDON="${{ github.event.repository.name }}"
           cd build
           zip -r "$ADDON-${GITHUB_REF_NAME}.zip" "$ADDON"
 
-      # 7. DRY RUN NOTICE
+      # 8. DRY RUN NOTICE
       - name: Dry run notice
         if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: echo "Dry run completed — no release was created."
+        run: echo "Dry run completed -- no release was created."
 
-      # 8. UPLOAD TO GITHUB RELEASES
+      # 9. UPLOAD TO GITHUB RELEASES
       - name: Upload Release Asset
         if: ${{ github.event.inputs.dry_run != 'true' }}
         uses: softprops/action-gh-release@v2
